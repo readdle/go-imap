@@ -21,6 +21,86 @@ type FetchOptions struct {
 	ModSeq            bool                          // requires CONDSTORE
 
 	ChangedSince uint64 // requires CONDSTORE
+
+	// CustomAttributes are server-defined attribute names (e.g. "X-GM-MSGID")
+	// requested verbatim. Responses are parsed via the client's
+	// imapclient.Options.CustomAttributeDecoders registry.
+	CustomAttributes []string
+}
+
+// Clone returns a deep copy of o. The returned value shares no mutable state
+// with the original: pointer fields are followed and re-allocated, slices are
+// copied. A nil receiver yields a nil result.
+func (o *FetchOptions) Clone() *FetchOptions {
+	if o == nil {
+		return nil
+	}
+	c := *o
+	if o.BodyStructure != nil {
+		bs := *o.BodyStructure
+		c.BodyStructure = &bs
+	}
+	if o.BodySection != nil {
+		c.BodySection = make([]*FetchItemBodySection, len(o.BodySection))
+		for i, s := range o.BodySection {
+			c.BodySection[i] = s.Clone()
+		}
+	}
+	if o.BinarySection != nil {
+		c.BinarySection = make([]*FetchItemBinarySection, len(o.BinarySection))
+		for i, s := range o.BinarySection {
+			c.BinarySection[i] = s.Clone()
+		}
+	}
+	if o.BinarySectionSize != nil {
+		c.BinarySectionSize = make([]*FetchItemBinarySectionSize, len(o.BinarySectionSize))
+		for i, s := range o.BinarySectionSize {
+			c.BinarySectionSize[i] = s.Clone()
+		}
+	}
+	if o.CustomAttributes != nil {
+		c.CustomAttributes = make([]string, len(o.CustomAttributes))
+		copy(c.CustomAttributes, o.CustomAttributes)
+	}
+	return &c
+}
+
+// WithCustomAttributes returns a deep copy of o with attrs merged into
+// CustomAttributes. Names are deduplicated case-insensitively (matching how
+// the parser canonicalises wire names), preserving the first-seen casing
+// and the original order. The receiver is left untouched, so the method is
+// safe to chain off a shared base FetchOptions. A nil receiver produces a
+// fresh FetchOptions carrying just attrs.
+func (o *FetchOptions) WithCustomAttributes(attrs ...string) *FetchOptions {
+	c := o.Clone()
+	if c == nil {
+		c = &FetchOptions{}
+	}
+
+	merged := make([]string, 0, len(c.CustomAttributes)+len(attrs))
+	seen := make(map[string]struct{}, cap(merged))
+	for _, name := range c.CustomAttributes {
+		key := strings.ToUpper(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		merged = append(merged, name)
+	}
+	for _, name := range attrs {
+		key := strings.ToUpper(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		merged = append(merged, name)
+	}
+	if len(merged) == 0 {
+		c.CustomAttributes = nil
+	} else {
+		c.CustomAttributes = merged
+	}
+	return c
 }
 
 // FetchItemBodyStructure contains FETCH options for the body structure.
@@ -65,6 +145,31 @@ type FetchItemBodySection struct {
 	Peek            bool
 }
 
+// Clone returns a deep copy of s. Returns nil for a nil receiver.
+func (s *FetchItemBodySection) Clone() *FetchItemBodySection {
+	if s == nil {
+		return nil
+	}
+	c := *s
+	if s.Part != nil {
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
+	}
+	if s.HeaderFields != nil {
+		c.HeaderFields = make([]string, len(s.HeaderFields))
+		copy(c.HeaderFields, s.HeaderFields)
+	}
+	if s.HeaderFieldsNot != nil {
+		c.HeaderFieldsNot = make([]string, len(s.HeaderFieldsNot))
+		copy(c.HeaderFieldsNot, s.HeaderFieldsNot)
+	}
+	if s.Partial != nil {
+		p := *s.Partial
+		c.Partial = &p
+	}
+	return &c
+}
+
 // FetchItemBinarySection is a FETCH BINARY[] data item.
 type FetchItemBinarySection struct {
 	Part    []int
@@ -72,9 +177,39 @@ type FetchItemBinarySection struct {
 	Peek    bool
 }
 
+// Clone returns a deep copy of s. Returns nil for a nil receiver.
+func (s *FetchItemBinarySection) Clone() *FetchItemBinarySection {
+	if s == nil {
+		return nil
+	}
+	c := *s
+	if s.Part != nil {
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
+	}
+	if s.Partial != nil {
+		p := *s.Partial
+		c.Partial = &p
+	}
+	return &c
+}
+
 // FetchItemBinarySectionSize is a FETCH BINARY.SIZE[] data item.
 type FetchItemBinarySectionSize struct {
 	Part []int
+}
+
+// Clone returns a deep copy of s. Returns nil for a nil receiver.
+func (s *FetchItemBinarySectionSize) Clone() *FetchItemBinarySectionSize {
+	if s == nil {
+		return nil
+	}
+	c := *s
+	if s.Part != nil {
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
+	}
+	return &c
 }
 
 // Envelope is the envelope structure of a message.
