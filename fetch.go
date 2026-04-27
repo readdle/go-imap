@@ -59,7 +59,8 @@ func (o *FetchOptions) Clone() *FetchOptions {
 		}
 	}
 	if o.CustomAttributes != nil {
-		c.CustomAttributes = append([]string(nil), o.CustomAttributes...)
+		c.CustomAttributes = make([]string, len(o.CustomAttributes))
+		copy(c.CustomAttributes, o.CustomAttributes)
 	}
 	return &c
 }
@@ -151,13 +152,16 @@ func (s *FetchItemBodySection) Clone() *FetchItemBodySection {
 	}
 	c := *s
 	if s.Part != nil {
-		c.Part = append([]int(nil), s.Part...)
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
 	}
 	if s.HeaderFields != nil {
-		c.HeaderFields = append([]string(nil), s.HeaderFields...)
+		c.HeaderFields = make([]string, len(s.HeaderFields))
+		copy(c.HeaderFields, s.HeaderFields)
 	}
 	if s.HeaderFieldsNot != nil {
-		c.HeaderFieldsNot = append([]string(nil), s.HeaderFieldsNot...)
+		c.HeaderFieldsNot = make([]string, len(s.HeaderFieldsNot))
+		copy(c.HeaderFieldsNot, s.HeaderFieldsNot)
 	}
 	if s.Partial != nil {
 		p := *s.Partial
@@ -180,7 +184,8 @@ func (s *FetchItemBinarySection) Clone() *FetchItemBinarySection {
 	}
 	c := *s
 	if s.Part != nil {
-		c.Part = append([]int(nil), s.Part...)
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
 	}
 	if s.Partial != nil {
 		p := *s.Partial
@@ -201,7 +206,8 @@ func (s *FetchItemBinarySectionSize) Clone() *FetchItemBinarySectionSize {
 	}
 	c := *s
 	if s.Part != nil {
-		c.Part = append([]int(nil), s.Part...)
+		c.Part = make([]int, len(s.Part))
+		copy(c.Part, s.Part)
 	}
 	return &c
 }
