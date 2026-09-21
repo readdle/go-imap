@@ -11,6 +11,8 @@ import (
 	"github.com/emersion/go-imap/v2/internal/imapwire"
 )
 
+const searchDateLayout = "02-Jan-2006"
+
 func returnSearchOptions(options *imap.SearchOptions) []string {
 	if options == nil {
 		return nil
@@ -67,7 +69,11 @@ func (c *Client) search(numKind imapwire.NumKind, criteria *imap.SearchCriteria,
 	if charset != "" {
 		enc.Atom("CHARSET").SP().Atom(charset).SP()
 	}
-	writeSearchKey(enc.Encoder, criteria)
+	dateFormat := imap.SearchDateFormatDefault
+	if options != nil {
+		dateFormat = options.DateFormat
+	}
+	writeSearchKey(enc.Encoder, criteria, dateFormat)
 	enc.end()
 	return cmd
 }
@@ -156,7 +162,7 @@ func (cmd *SearchCommand) Wait() (*imap.SearchData, error) {
 	return &cmd.data, cmd.wait()
 }
 
-func writeSearchKey(enc *imapwire.Encoder, criteria *imap.SearchCriteria) {
+func writeSearchKey(enc *imapwire.Encoder, criteria *imap.SearchCriteria, dateFormat imap.SearchDateFormat) {
 	firstItem := true
 	encodeItem := func() *imapwire.Encoder {
 		if !firstItem {
@@ -174,23 +180,29 @@ func writeSearchKey(enc *imapwire.Encoder, criteria *imap.SearchCriteria) {
 	}
 
 	if !criteria.Since.IsZero() && !criteria.Before.IsZero() && criteria.Before.Sub(criteria.Since) == 24*time.Hour {
-		encodeItem().Atom("ON").SP().String(criteria.Since.Format(internal.DateLayout))
+		encodeItem().Atom("ON").SP()
+		writeSearchDate(enc, criteria.Since, dateFormat)
 	} else {
 		if !criteria.Since.IsZero() {
-			encodeItem().Atom("SINCE").SP().String(criteria.Since.Format(internal.DateLayout))
+			encodeItem().Atom("SINCE").SP()
+			writeSearchDate(enc, criteria.Since, dateFormat)
 		}
 		if !criteria.Before.IsZero() {
-			encodeItem().Atom("BEFORE").SP().String(criteria.Before.Format(internal.DateLayout))
+			encodeItem().Atom("BEFORE").SP()
+			writeSearchDate(enc, criteria.Before, dateFormat)
 		}
 	}
 	if !criteria.SentSince.IsZero() && !criteria.SentBefore.IsZero() && criteria.SentBefore.Sub(criteria.SentSince) == 24*time.Hour {
-		encodeItem().Atom("SENTON").SP().String(criteria.SentSince.Format(internal.DateLayout))
+		encodeItem().Atom("SENTON").SP()
+		writeSearchDate(enc, criteria.SentSince, dateFormat)
 	} else {
 		if !criteria.SentSince.IsZero() {
-			encodeItem().Atom("SENTSINCE").SP().String(criteria.SentSince.Format(internal.DateLayout))
+			encodeItem().Atom("SENTSINCE").SP()
+			writeSearchDate(enc, criteria.SentSince, dateFormat)
 		}
 		if !criteria.SentBefore.IsZero() {
-			encodeItem().Atom("SENTBEFORE").SP().String(criteria.SentBefore.Format(internal.DateLayout))
+			encodeItem().Atom("SENTBEFORE").SP()
+			writeSearchDate(enc, criteria.SentBefore, dateFormat)
 		}
 	}
 
@@ -249,23 +261,31 @@ func writeSearchKey(enc *imapwire.Encoder, criteria *imap.SearchCriteria) {
 	for _, not := range criteria.Not {
 		encodeItem().Atom("NOT").SP()
 		enc.Special('(')
-		writeSearchKey(enc, &not)
+		writeSearchKey(enc, &not, dateFormat)
 		enc.Special(')')
 	}
 	for _, or := range criteria.Or {
 		encodeItem().Atom("OR").SP()
 		enc.Special('(')
-		writeSearchKey(enc, &or[0])
+		writeSearchKey(enc, &or[0], dateFormat)
 		enc.Special(')')
 		enc.SP()
 		enc.Special('(')
-		writeSearchKey(enc, &or[1])
+		writeSearchKey(enc, &or[1], dateFormat)
 		enc.Special(')')
 	}
 
 	if firstItem {
 		enc.Atom("ALL")
 	}
+}
+
+func writeSearchDate(enc *imapwire.Encoder, date time.Time, format imap.SearchDateFormat) {
+	if format == imap.SearchDateFormatUnquoted {
+		enc.Atom(date.Format(searchDateLayout))
+		return
+	}
+	enc.String(date.Format(internal.DateLayout))
 }
 
 func flagSearchKey(flag imap.Flag) string {
