@@ -14,7 +14,18 @@ type SearchOptions struct {
 	ReturnCount bool
 	// Requires IMAP4rev2 or SEARCHRES
 	ReturnSave bool
+
+	DateFormat SearchDateFormat
 }
+
+// SearchDateFormat controls date encoding in SEARCH commands.
+type SearchDateFormat uint8
+
+const (
+	SearchDateFormatDefault SearchDateFormat = iota
+	// SearchDateFormatUnquoted uses the widely supported DD-Mon-YYYY atom form.
+	SearchDateFormatUnquoted
+)
 
 // SearchCriteria is a criteria for the SEARCH command.
 //
