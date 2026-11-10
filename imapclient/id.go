@@ -97,20 +97,20 @@ func (c *Client) readID(dec *imapwire.Decoder) (*imap.IDData, error) {
 		return nil, dec.Err()
 	}
 
-	if dec.ExpectNIL() {
-		return &data, nil
-	}
-
 	currKey := ""
-	err := dec.ExpectList(func() error {
+	err := dec.ExpectNList(func() error {
 		var keyOrValue string
-		if !dec.String(&keyOrValue) {
-			return fmt.Errorf("in id key-val list: %w", dec.Err())
-		}
-
 		if currKey == "" {
+			if !dec.ExpectString(&keyOrValue) {
+				return fmt.Errorf("in id key-val list: %w", dec.Err())
+			}
 			currKey = keyOrValue
 			return nil
+		}
+
+		// RFC 2971 defines a field value as an nstring
+		if !dec.ExpectNString(&keyOrValue) {
+			return fmt.Errorf("in id key-val list: %w", dec.Err())
 		}
 
 		switch currKey {
